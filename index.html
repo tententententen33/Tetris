@@ -17,44 +17,35 @@
   <!-- 上部バー -->
   <header id="topbar">
     <div class="brand">サンド<span>テトリス</span></div>
+    <div id="oppInfo" class="opp-info">
+      <span class="opp-label">相手</span>
+      <span id="oppScore">0</span>
+      <span id="oppState" class="opp-state">●</span>
+    </div>
     <div id="timer" class="timer">00:00</div>
     <button id="pauseBtn" class="icon-btn" aria-label="一時停止">❚❚</button>
   </header>
 
-  <!-- 対戦アリーナ（1人/2人共通） -->
+  <!-- 盤面（1端末1画面） -->
   <div id="arena">
-
-    <!-- Player A -->
     <section class="player" data-player="0">
       <div class="pinfo">
         <div class="stat-block">
           <span class="stat-label">SCORE</span>
           <span class="stat-value pscore">0</span>
         </div>
-        <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
-        <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
-      </div>
-      <div class="pstage"><canvas class="board"></canvas></div>
-      <div class="pkeys">A/D 移動・W 回転・S 下・Shift 落下・Q ホールド</div>
-    </section>
-
-    <!-- Player B（対戦時のみ表示） -->
-    <section class="player" data-player="1">
-      <div class="pinfo">
-        <div class="stat-block">
-          <span class="stat-label">SCORE</span>
-          <span class="stat-value pscore">0</span>
+        <div class="stat-block lvl-inline">
+          <span class="stat-label">LEVEL</span>
+          <span class="stat-value" id="playLevel">1</span>
         </div>
         <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
         <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
       </div>
       <div class="pstage"><canvas class="board"></canvas></div>
-      <div class="pkeys">← → 移動・↑ 回転・↓ 下・/ 落下・. ホールド</div>
     </section>
-
   </div>
 
-  <!-- スマホ用コントローラー（ソロ用 / Player A 操作） -->
+  <!-- スマホ用コントローラー -->
   <footer id="controller">
     <div class="pad pad-left">
       <button class="ctrl-btn" data-act="left" aria-label="左">◀</button>
@@ -68,7 +59,7 @@
     </div>
   </footer>
 
-  <!-- 操作ガイド（ソロ・PC向け・画面端） -->
+  <!-- 操作ガイド（PC向け・画面端） -->
   <aside id="keyguide" class="key-guide">
     <h2>CONTROLS</h2>
     <ul>
@@ -87,10 +78,28 @@
     <div class="overlay-card">
       <div class="logo">サンド<span class="logo-accent">テトリス</span></div>
       <p class="tagline">SAND&nbsp;TETRIS</p>
-      <p class="desc">ブロックは着地すると砂になって崩れます。<br>同じ色の砂が左の壁から右の壁までつながると、まとめて消えてスコアになります。</p>
+      <div class="level-box">
+        <div class="level-row">
+          <span class="lvl-badge">Lv.<span id="homeLevel">1</span></span>
+          <span id="homeXpText" class="xp-text">0 / 300 XP</span>
+        </div>
+        <div class="xp-bar"><div id="homeXpFill" class="xp-fill"></div></div>
+      </div>
+      <p class="desc">同じ色の砂が左の壁から右の壁までつながると消えてスコアになります。<br>スコアは経験値になり、レベルが上がるほど難しくなります。</p>
       <button id="startBtn" class="primary-btn">ソロでプレイ</button>
-      <button id="vsBtn" class="secondary-btn">2人で対戦（ローカル）</button>
-      <p class="hint">対戦はキーボード推奨。消すと相手に虹色ブロックを送り込めます。</p>
+      <button id="onlineBtn" class="secondary-btn">オンライン対戦</button>
+    </div>
+  </section>
+
+  <!-- オンライン対戦ロビー -->
+  <section id="roomScreen" class="overlay hidden">
+    <div class="overlay-card">
+      <h1 class="screen-title">オンライン対戦</h1>
+      <p class="desc">あいことばを決めて、相手と同じ言葉で参加してください。<br>同じネットワークでも、離れた相手とも対戦できます。</p>
+      <input id="roomCode" class="text-input" maxlength="24" autocomplete="off" autocapitalize="off" placeholder="あいことば（例: ramen123）" />
+      <button id="connectBtn" class="primary-btn">対戦する</button>
+      <p id="roomStatus" class="hint"></p>
+      <button id="roomBackBtn" class="secondary-btn">ホームへ戻る</button>
     </div>
   </section>
 
@@ -98,18 +107,26 @@
   <section id="pauseScreen" class="overlay hidden">
     <div class="overlay-card">
       <h1 class="screen-title">一時停止</h1>
-      <p class="desc">続けるか、やり直すか、ホームに戻れます。</p>
+      <p class="desc" id="pauseDesc">続けるか、やり直すか、ホームに戻れます。</p>
       <button id="resumeBtn" class="primary-btn">再開</button>
       <button id="restartBtn" class="secondary-btn">やり直す</button>
       <button id="pauseHomeBtn" class="secondary-btn">ホーム画面へ戻る</button>
     </div>
   </section>
 
-  <!-- ゲームオーバー画面 -->
+  <!-- 結果画面 -->
   <section id="gameoverScreen" class="overlay hidden">
     <div class="overlay-card">
       <h1 class="screen-title" id="goTitle">ゲームオーバー</h1>
-      <p class="desc" id="goDesc">スコア <span id="finalScore">0</span></p>
+      <p class="desc" id="goDesc"></p>
+      <div id="goLevelBox" class="level-box hidden">
+        <div class="level-row">
+          <span class="lvl-badge">Lv.<span id="goLevel">1</span></span>
+          <span id="goXpText" class="xp-text"></span>
+        </div>
+        <div class="xp-bar"><div id="goXpFill" class="xp-fill"></div></div>
+        <p id="goLevelUp" class="levelup-note hidden">レベルアップ！</p>
+      </div>
       <button id="retryBtn" class="primary-btn">もう一度</button>
       <button id="homeBtn" class="secondary-btn">ホームへ</button>
     </div>
@@ -117,6 +134,7 @@
 
 </div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
