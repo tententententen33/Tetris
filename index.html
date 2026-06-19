@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Sand Tetris - 砂テトリス</title>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --panel: #161a2b;
+    --accent: #ffb070;
+    --text: #e8ecff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% 0%, #1a1f33 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+  #wrap {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: center;
+    height: 100%;
+    padding: 16px;
+  }
+  #stage {
+    position: relative;
+    background: #000;
+    border: 3px solid #2a3050;
+    border-radius: 6px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.8);
+    image-rendering: pixelated;
+  }
+  canvas { display: block; image-rendering: pixelated; }
+  #side {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 180px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid #2a3050;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card h2 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.9;
+  }
+  .stat { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .label { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  #nextCv { background: #000; border-radius: 6px; display: block; }
+  .keys { font-size: 12px; line-height: 1.9; opacity: 0.85; }
+  .keys b {
+    display: inline-block;
+    min-width: 64px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: rgba(5,7,15,0.82);
+    backdrop-filter: blur(2px);
+    border-radius: 4px;
+    text-align: center;
+    padding: 20px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 { margin: 0; font-size: 30px; letter-spacing: 1px; }
+  #overlay p { margin: 0; opacity: 0.8; max-width: 280px; font-size: 14px; line-height: 1.6; }
+  button.play {
+    margin-top: 6px;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1206;
+    background: linear-gradient(180deg, #ffce9a, var(--accent));
+    border: none; border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(255,176,112,0.35);
+  }
+  button.play:active { transform: translateY(1px); }
+  @media (max-width: 640px) {
+    #wrap { flex-direction: column; align-items: center; padding: 8px; }
+    #side { flex-direction: row; flex-wrap: wrap; min-width: 0; justify-content: center; }
+    .keys { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="overlay">
+      <h1>砂テトリス</h1>
+      <p>ブロックは着地すると砂になって崩れます。同じ色の砂が左の壁から右の壁までつながると一気に消えます。</p>
+      <button class="play" id="startBtn">スタート</button>
+    </div>
+  </div>
+  <div id="side">
+    <div class="card">
+      <h2>Score</h2>
+      <div class="stat" id="score">0</div>
+      <div class="label">消した砂の量で加点</div>
+    </div>
+    <div class="card">
+      <h2>Next</h2>
+      <canvas id="nextCv" width="96" height="96"></canvas>
+    </div>
+    <div class="card keys">
+      <h2>操作</h2>
+      <div><b>← →</b> 移動</div>
+      <div><b>↑ / X</b> 回転</div>
+      <div><b>↓</b> ソフトドロップ</div>
+      <div><b>Space</b> ハードドロップ</div>
+      <div><b>P</b> 一時停止</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ===== 設定 =====
+  const CELL = 8;        // テトロミノ1マスあたりの砂ピクセル数
+  const COLS = 10;       // 盤面の横マス数
+  const ROWS = 20;       // 盤面の縦マス数
+  const GW = COLS * CELL; // 砂グリッド横 (80)
+  const GH = ROWS * CELL; // 砂グリッド縦 (160)
+  const PIX = 5;          // 砂1ピクセルの描画サイズ
+  const W = GW * PIX;     // canvas幅 400
+  const H = GH * PIX;     // canvas高 800
+
+  // 4色パレット（砂の色）。0は空。
+  const PALETTE = [
+    null,
+    { r: 0xe8, g: 0x5d, b: 0x3a }, // 赤
+    { r: 0x3d, g: 0xb0, b: 0x52 }, // 緑
+    { r: 0x3a, g: 0x82, b: 0xe8 }, // 青
+    { r: 0xf2, g: 0xc4, b: 0x33 }, // 黄
+  ];
+  const NCOL = 4;
+
+  // テトロミノ定義（4x4基準のセル座標）
+  const SHAPES = {
+    I: [[0,1],[1,1],[2,1],[3,1]],
+    O: [[1,0],[2,0],[1,1],[2,1]],
+    T: [[1,0],[0,1],[1,1],[2,1]],
+    S: [[1,0],[2,0],[0,1],[1,1]],
+    Z: [[0,0],[1,0],[1,1],[2,1]],
+    J: [[0,0],[0,1],[1,1],[2,1]],
+    L: [[2,0],[0,1],[1,1],[2,1]],
+  };
+  const SHAPE_KEYS = Object.keys(SHAPES);
+
+  // ===== Canvas =====
+  const cv = document.getElementById("cv");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  const off = document.createElement("canvas");
+  off.width = GW; off.height = GH;
+  const octx = off.getContext("2d");
+  const img = octx.createImageData(GW, GH);
+
+  const nextCv = document.getElementById("nextCv");
+  const nctx = nextCv.getContext("2d");
+
+  const scoreEl = document.getElementById("score");
+  const overlay = document.getElementById("overlay");
+  const startBtn = document.getElementById("startBtn");
+
+  // ===== 状態 =====
+  const grid = new Uint8Array(GW * GH); // 砂グリッド（色index）
+  // 砂の見た目用の明るさノイズ（固定）
+  const noise = new Float32Array(GW * GH);
+  for (let i = 0; i < noise.length; i++) noise[i] = 0.78 + Math.random() * 0.32;
+
+  let piece = null;     // 現在のピース
+  let nextType = null;
+  let nextColor = 0;
+  let score = 0;
+  let running = false;
+  let paused = false;
+  let gameOver = false;
+
+  let dropTimer = 0;
+  const DROP_INTERVAL = 0.5;  // 通常落下間隔(秒)
+  const SOFT_INTERVAL = 0.04; // ソフトドロップ
+  let softDrop = false;
+
+  const idx = (x, y) => y * GW + x;
+
+  // ===== ピース生成 =====
+  function makePiece(type, color) {
+    const cells = SHAPES[type].map(c => [c[0], c[1]]);
+    // 横中央寄せ。セル単位のx位置 -> 砂座標へ
+    return {
+      type,
+      color,
+      cells,
+      cx: Math.floor((COLS - 4) / 2), // セル基準の左上x
+      cy: -1,                          // 上に少し余裕
+    };
+  }
+
+  function rotate(p) {
+    // 4x4内で時計回り回転
+    const rotated = p.cells.map(([x, y]) => [3 - y, x]);
+    const test = { ...p, cells: rotated };
+    if (!collide(test, 0, 0)) {
+      p.cells = rotated;
+    } else {
+      // 壁蹴り簡易版
+      for (const dx of [-1, 1, -2, 2]) {
+        if (!collide(test, dx, 0)) { p.cells = rotated; p.cx += dx; return; }
+      }
+    }
+  }
+
+  // ピースが占める砂セル群に対する衝突判定
+  function collide(p, offCellX, offCellY) {
+    for (const [bx, by] of p.cells) {
+      const cellX = p.cx + bx + offCellX;
+      const cellY = p.cy + by + offCellY;
+      const sx0 = cellX * CELL;
+      const sy0 = cellY * CELL;
+      for (let yy = 0; yy < CELL; yy++) {
+        const gy = sy0 + yy;
+        for (let xx = 0; xx < CELL; xx++) {
+          const gx = sx0 + xx;
+          if (gx < 0 || gx >= GW || gy >= GH) return true; // 壁・床
+          if (gy < 0) continue; // 天井より上は許容
+          if (grid[idx(gx, gy)] !== 0) return true; // 砂と衝突
+        }
+      }
+    }
+    return false;
+  }
+
+  // ピースを砂グリッドに焼き付ける
+  function stamp(p) {
+    for (const [bx, by] of p.cells) {
+      const sx0 = (p.cx + bx) * CELL;
+      const sy0 = (p.cy + by) * CELL;
+      for (let yy = 0; yy < CELL; yy++) {
+        const gy = sy0 + yy;
+        if (gy < 0 || gy >= GH) continue;
+        for (let xx = 0; xx < CELL; xx++) {
+          const gx = sx0 + xx;
+          if (gx < 0 || gx >= GW) continue;
+          grid[idx(gx, gy)] = p.color;
+        }
+      }
+    }
+  }
+
+  function spawn() {
+    const type = nextType ?? SHAPE_KEYS[(Math.random() * SHAPE_KEYS.length) | 0];
+    const color = nextColor || (1 + ((Math.random() * NCOL) | 0));
+    piece = makePiece(type, color);
+    nextType = SHAPE_KEYS[(Math.random() * SHAPE_KEYS.length) | 0];
+    nextColor = 1 + ((Math.random() * NCOL) | 0);
+    drawNext();
+    // 出現位置で衝突 = ゲームオーバー
+    if (collide(piece, 0, 0)) {
+      endGame();
+    }
+  }
+
+  function lockPiece() {
+    stamp(piece);
+    piece = null;
+    spawn();
+  }
+
+  // ===== 砂の物理（セルオートマトン） =====
+  function stepSand() {
+    // 下から上へ。各行で進行方向をランダムにして偏りを防ぐ
+    for (let y = GH - 2; y >= 0; y--) {
+      const leftFirst = Math.random() < 0.5;
+      for (let i = 0; i < GW; i++) {
+        const x = leftFirst ? i : GW - 1 - i;
+        const c = grid[idx(x, y)];
+        if (c === 0) continue;
+        // 真下
+        if (grid[idx(x, y + 1)] === 0) {
+          grid[idx(x, y + 1)] = c;
+          grid[idx(x, y)] = 0;
+          continue;
+        }
+        // 斜め下（ランダムに左右どちらを優先）
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        let moved = false;
+        for (const d of [dir, -dir]) {
+          const nx = x + d;
+          if (nx < 0 || nx >= GW) continue;
+          if (grid[idx(nx, y + 1)] === 0 && grid[idx(nx, y)] === 0) {
+            grid[idx(nx, y + 1)] = c;
+            grid[idx(x, y)] = 0;
+            moved = true;
+            break;
+          }
+        }
+        if (moved) continue;
+      }
+    }
+  }
+
+  // ===== ライン消去：同色が左壁→右壁につながったら消す =====
+  const visited = new Uint8Array(GW * GH);
+  const qX = new Int16Array(GW * GH); // BFS用キュー
+  const qY = new Int16Array(GW * GH);
+  const compIdx = new Int32Array(GW * GH); // 連結成分のセル一覧
+
+  function clearConnected() {
+    visited.fill(0);
+    let cleared = 0;
+
+    // 左端の各セルを起点に、同色4近傍の連結成分を探索
+    for (let y = 0; y < GH; y++) {
+      const start = idx(0, y);
+      const c = grid[start];
+      if (c === 0 || visited[start]) continue;
+
+      let head = 0, tail = 0, n = 0;
+      let touchRight = false;
+      qX[tail] = 0; qY[tail] = y; tail++;
+      visited[start] = 1;
+
+      const tryPush = (ax, ay) => {
+        const ai = idx(ax, ay);
+        if (visited[ai] || grid[ai] !== c) return;
+        visited[ai] = 1;
+        qX[tail] = ax; qY[tail] = ay; tail++;
+      };
+
+      while (head < tail) {
+        const cx = qX[head], cy = qY[head]; head++;
+        compIdx[n++] = idx(cx, cy);
+        if (cx === GW - 1) touchRight = true;
+
+        // 4近傍
+        if (cx > 0)      tryPush(cx - 1, cy);
+        if (cx < GW - 1) tryPush(cx + 1, cy);
+        if (cy > 0)      tryPush(cx, cy - 1);
+        if (cy < GH - 1) tryPush(cx, cy + 1);
+      }
+
+      if (touchRight) {
+        for (let k = 0; k < n; k++) grid[compIdx[k]] = 0;
+        cleared += n;
+      }
+    }
+
+    if (cleared > 0) {
+      score += cleared;
+      scoreEl.textContent = score;
+    }
+  }
+
+  // ===== 描画 =====
+  function render() {
+    const data = img.data;
+    // 背景クリア（黒）
+    for (let y = 0; y < GH; y++) {
+      for (let x = 0; x < GW; x++) {
+        const gi = idx(x, y);
+        const di = gi * 4;
+        const c = grid[gi];
+        if (c === 0) {
+          data[di] = 0; data[di+1] = 0; data[di+2] = 0; data[di+3] = 255;
+        } else {
+          const p = PALETTE[c];
+          const b = noise[gi];
+          data[di]   = Math.min(255, p.r * b) | 0;
+          data[di+1] = Math.min(255, p.g * b) | 0;
+          data[di+2] = Math.min(255, p.b * b) | 0;
+          data[di+3] = 255;
+        }
+      }
+    }
+
+    // 現在のピース（まだ砂になっていない＝ソリッドな塊）
+    if (piece) {
+      const p = PALETTE[piece.color];
+      for (const [bx, by] of piece.cells) {
+        const sx0 = (piece.cx + bx) * CELL;
+        const sy0 = (piece.cy + by) * CELL;
+        for (let yy = 0; yy < CELL; yy++) {
+          const gy = sy0 + yy;
+          if (gy < 0 || gy >= GH) continue;
+          for (let xx = 0; xx < CELL; xx++) {
+            const gx = sx0 + xx;
+            if (gx < 0 || gx >= GW) continue;
+            const di = idx(gx, gy) * 4;
+            const b = noise[idx(gx, gy)];
+            data[di]   = Math.min(255, p.r * b) | 0;
+            data[di+1] = Math.min(255, p.g * b) | 0;
+            data[di+2] = Math.min(255, p.b * b) | 0;
+            data[di+3] = 255;
+          }
+        }
+      }
+    }
+
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, GW, GH, 0, 0, W, H);
+  }
+
+  function drawNext() {
+    nctx.clearRect(0, 0, 96, 96);
+    if (!nextType) return;
+    const cells = SHAPES[nextType];
+    const p = PALETTE[nextColor];
+    nctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+    const s = 20, ox = 8, oy = 8;
+    for (const [x, y] of cells) {
+      nctx.fillRect(ox + x * s, oy + y * s, s - 2, s - 2);
+    }
+  }
+
+  // ===== ハードドロップ =====
+  function hardDrop() {
+    if (!piece) return;
+    let steps = 0;
+    while (!collide(piece, 0, 1)) { piece.cy++; steps++; }
+    lockPiece();
+  }
+
+  // ===== ゲームループ =====
+  let lastTime = 0;
+  let sandAccumulator = 0;
+  const SAND_STEP = 1 / 120; // 砂シミュレーションの更新頻度
+
+  function loop(t) {
+    requestAnimationFrame(loop);
+    if (!running || paused || gameOver) { lastTime = t; return; }
+    const dt = Math.min((t - lastTime) / 1000, 0.05);
+    lastTime = t;
+
+    // 砂の更新（複数回回して滑らかに）
+    sandAccumulator += dt;
+    let sandSteps = 0;
+    while (sandAccumulator >= SAND_STEP && sandSteps < 4) {
+      stepSand();
+      sandAccumulator -= SAND_STEP;
+      sandSteps++;
+    }
+    clearConnected();
+
+    // ピース落下
+    if (piece) {
+      dropTimer += dt;
+      const interval = softDrop ? SOFT_INTERVAL : DROP_INTERVAL;
+      if (dropTimer >= interval) {
+        dropTimer = 0;
+        if (!collide(piece, 0, 1)) {
+          piece.cy++;
+        } else {
+          lockPiece();
+        }
+      }
+    }
+
+    render();
+  }
+
+  // ===== 入力 =====
+  document.addEventListener("keydown", (e) => {
+    if (!running) {
+      if (e.code === "Enter" || e.code === "Space") startGame();
+      return;
+    }
+    if (e.code === "KeyP") { paused = !paused; lastTime = performance.now(); return; }
+    if (paused || gameOver || !piece) return;
+
+    switch (e.code) {
+      case "ArrowLeft":
+        if (!collide(piece, -1, 0)) piece.cx--;
+        e.preventDefault();
+        break;
+      case "ArrowRight":
+        if (!collide(piece, 1, 0)) piece.cx++;
+        e.preventDefault();
+        break;
+      case "ArrowUp":
+      case "KeyX":
+        rotate(piece);
+        e.preventDefault();
+        break;
+      case "ArrowDown":
+        softDrop = true;
+        e.preventDefault();
+        break;
+      case "Space":
+        hardDrop();
+        e.preventDefault();
+        break;
+    }
+  });
+
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "ArrowDown") softDrop = false;
+  });
+
+  // ===== ゲーム開始/終了 =====
+  function startGame() {
+    grid.fill(0);
+    score = 0;
+    scoreEl.textContent = "0";
+    gameOver = false;
+    paused = false;
+    running = true;
+    piece = null;
+    nextType = null;
+    nextColor = 0;
+    overlay.classList.add("hidden");
+    spawn();
+    lastTime = performance.now();
+  }
+
+  function endGame() {
+    gameOver = true;
+    running = false;
+    overlay.classList.remove("hidden");
+    overlay.querySelector("h1").textContent = "ゲームオーバー";
+    overlay.querySelector("p").textContent = `スコア ${score}。もう一度挑戦しよう。`;
+    startBtn.textContent = "リトライ";
+  }
+
+  startBtn.addEventListener("click", startGame);
+
+  // 初回描画
+  render();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
