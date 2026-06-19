@@ -26,7 +26,7 @@
     <button id="pauseBtn" class="icon-btn" aria-label="一時停止">❚❚</button>
   </header>
 
-  <!-- 盤面（1端末1画面） -->
+  <!-- 盤面 -->
   <div id="arena">
     <section class="player" data-player="0">
       <div class="pinfo">
@@ -41,7 +41,11 @@
         <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
         <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
       </div>
-      <div class="pstage"><canvas class="board"></canvas></div>
+      <div id="soloGoal" class="solo-goal">目標スコア 3000</div>
+      <div class="pstage">
+        <canvas class="board"></canvas>
+        <div id="banner" class="banner hidden"></div>
+      </div>
     </section>
   </div>
 
@@ -59,7 +63,7 @@
     </div>
   </footer>
 
-  <!-- 操作ガイド（PC向け・画面端） -->
+  <!-- 操作ガイド（PC向け） -->
   <aside id="keyguide" class="key-guide">
     <h2>CONTROLS</h2>
     <ul>
@@ -78,16 +82,31 @@
     <div class="overlay-card">
       <div class="logo">サンド<span class="logo-accent">テトリス</span></div>
       <p class="tagline">SAND&nbsp;TETRIS</p>
-      <div class="level-box">
-        <div class="level-row">
-          <span class="lvl-badge">Lv.<span id="homeLevel">1</span></span>
-          <span id="homeXpText" class="xp-text">0 / 300 XP</span>
-        </div>
-        <div class="xp-bar"><div id="homeXpFill" class="xp-fill"></div></div>
+      <div class="home-stats">
+        <span>最高到達 <b>Lv.<span id="homeMaxLevel">1</span></b></span>
+        <span>エンドレス最高 <b id="homeEndlessBest">0</b></span>
       </div>
-      <p class="desc">同じ色の砂が左の壁から右の壁までつながると消えてスコアになります。<br>スコアは経験値になり、レベルが上がるほど難しくなります。</p>
-      <button id="startBtn" class="primary-btn">ソロでプレイ</button>
+      <button id="soloBtn" class="primary-btn">ソロ（レベル制）</button>
+      <button id="endlessBtn" class="secondary-btn">エンドレスモード</button>
       <button id="onlineBtn" class="secondary-btn">オンライン対戦</button>
+    </div>
+  </section>
+
+  <!-- レベル選択 -->
+  <section id="levelSelect" class="overlay hidden">
+    <div class="overlay-card">
+      <h1 class="screen-title">レベルを選ぶ</h1>
+      <div class="level-stepper">
+        <button id="levelPrev" class="step-btn">◀</button>
+        <div class="level-display">
+          <span class="lvl-num">Lv.<span id="levelSelValue">1</span></span>
+          <span id="levelLock" class="lvl-lock hidden">🔒 未解放</span>
+        </div>
+        <button id="levelNext" class="step-btn">▶</button>
+      </div>
+      <p class="desc" id="levelInfo">クリア目標 3000 点</p>
+      <button id="levelPlayBtn" class="primary-btn">プレイ</button>
+      <button id="levelBackBtn" class="secondary-btn">ホームへ戻る</button>
     </div>
   </section>
 
@@ -95,7 +114,7 @@
   <section id="roomScreen" class="overlay hidden">
     <div class="overlay-card">
       <h1 class="screen-title">オンライン対戦</h1>
-      <p class="desc">あいことばを決めて、相手と同じ言葉で参加してください。<br>同じネットワークでも、離れた相手とも対戦できます。</p>
+      <p class="desc">あいことばを決めて、相手と同じ言葉で参加してください。<br>同じネットワークでも、離れた相手とも対戦できます。<br>（ルールはエンドレスがベースです）</p>
       <input id="roomCode" class="text-input" maxlength="24" autocomplete="off" autocapitalize="off" placeholder="あいことば（例: ramen123）" />
       <button id="connectBtn" class="primary-btn">対戦する</button>
       <p id="roomStatus" class="hint"></p>
@@ -107,7 +126,7 @@
   <section id="pauseScreen" class="overlay hidden">
     <div class="overlay-card">
       <h1 class="screen-title">一時停止</h1>
-      <p class="desc" id="pauseDesc">続けるか、やり直すか、ホームに戻れます。</p>
+      <p class="desc">続けるか、やり直すか、ホームに戻れます。</p>
       <button id="resumeBtn" class="primary-btn">再開</button>
       <button id="restartBtn" class="secondary-btn">やり直す</button>
       <button id="pauseHomeBtn" class="secondary-btn">ホーム画面へ戻る</button>
@@ -119,14 +138,7 @@
     <div class="overlay-card">
       <h1 class="screen-title" id="goTitle">ゲームオーバー</h1>
       <p class="desc" id="goDesc"></p>
-      <div id="goLevelBox" class="level-box hidden">
-        <div class="level-row">
-          <span class="lvl-badge">Lv.<span id="goLevel">1</span></span>
-          <span id="goXpText" class="xp-text"></span>
-        </div>
-        <div class="xp-bar"><div id="goXpFill" class="xp-fill"></div></div>
-        <p id="goLevelUp" class="levelup-note hidden">レベルアップ！</p>
-      </div>
+      <p id="goExtra" class="levelup-note hidden"></p>
       <button id="retryBtn" class="primary-btn">もう一度</button>
       <button id="homeBtn" class="secondary-btn">ホームへ</button>
     </div>

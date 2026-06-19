@@ -65,6 +65,8 @@ html, body {
 .opp-state.on { color: #3db052; }
 #app.mode-online .opp-info { display: flex; }
 #app.mode-online #pauseBtn { display: none; }
+#app.mode-online .lvl-inline,
+#app.mode-endless .lvl-inline { display: none; }
 
 .icon-btn {
   width: 44px; height: 44px;
@@ -114,13 +116,47 @@ html, body {
   image-rendering: pixelated;
 }
 
+.solo-goal {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+  min-height: 16px;
+}
+#app:not(.mode-solo) .solo-goal { display: none; }
+#app:not(.mode-solo) .lvl-inline { display: none; }
+
 .pstage {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* レベルクリアなどのバナー */
+.banner {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1206;
+  background: linear-gradient(180deg, var(--accent2), var(--accent));
+  border-radius: 30px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 6;
+  animation: bannerPop 0.3s ease;
+}
+.banner.hidden { display: none; }
+@keyframes bannerPop {
+  from { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 .board {
   height: 100%;
@@ -232,19 +268,37 @@ html, body {
 .desc { margin: 0; font-size: 14px; line-height: 1.7; color: var(--muted); }
 .hint { margin: 4px 0 0; font-size: 12px; color: var(--muted); min-height: 16px; line-height: 1.5; }
 
-/* レベル/XPバー */
-.level-box { width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 6px; }
-.level-row { display: flex; align-items: center; justify-content: space-between; }
-.lvl-badge {
-  font-size: 15px; font-weight: 800; color: #1a1206;
-  background: linear-gradient(180deg, var(--accent2), var(--accent));
-  padding: 3px 12px; border-radius: 20px;
+/* ホーム統計 / レベル選択 */
+.home-stats {
+  display: flex;
+  gap: 18px;
+  font-size: 13px;
+  color: var(--muted);
 }
-.lvl-badge span { color: #1a1206; }
-.xp-text { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.xp-bar { width: 100%; height: 10px; background: #11141f; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.xp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.5s ease; }
+.home-stats b { color: var(--text); }
+
+.level-stepper {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.step-btn {
+  width: 54px; height: 54px;
+  font-size: 22px;
+  color: var(--text);
+  background: linear-gradient(180deg, #232a44, #181d2e);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.step-btn:active { transform: translateY(2px); }
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.level-display { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; }
+.lvl-num { font-size: 34px; font-weight: 900; }
+.lvl-lock { font-size: 12px; color: #e85d3a; font-weight: 700; }
+.lvl-lock.hidden { display: none; }
 .levelup-note { margin: 2px 0 0; font-size: 14px; font-weight: 800; color: var(--accent); }
+.levelup-note.hidden { display: none; }
 .lvl-inline { align-items: flex-start; }
 
 .text-input {
