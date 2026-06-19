@@ -5,34 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0d0f1a" />
 <title>サンドテトリス - Sand Tetris</title>
+<link rel="icon" type="image/png" href="icon.png" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon.png" />
+<link rel="manifest" href="manifest.webmanifest" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div id="app">
+<div id="app" class="mode-solo">
 
   <!-- 上部バー -->
   <header id="topbar">
-    <div class="stat-block">
-      <span class="stat-label">SCORE</span>
-      <span class="stat-value" id="score">0</span>
-    </div>
-    <div class="slot">
-      <span class="stat-label">HOLD</span>
-      <canvas id="holdCv" class="slot-cv" width="80" height="80"></canvas>
-    </div>
-    <div class="slot">
-      <span class="stat-label">NEXT</span>
-      <canvas id="nextCv" class="slot-cv" width="80" height="80"></canvas>
-    </div>
+    <div class="brand">サンド<span>テトリス</span></div>
+    <div id="timer" class="timer">00:00</div>
     <button id="pauseBtn" class="icon-btn" aria-label="一時停止">❚❚</button>
   </header>
 
-  <!-- ゲーム画面 -->
-  <main id="stage">
-    <canvas id="cv"></canvas>
-  </main>
+  <!-- 対戦アリーナ（1人/2人共通） -->
+  <div id="arena">
 
-  <!-- スマホ用コントローラー -->
+    <!-- Player A -->
+    <section class="player" data-player="0">
+      <div class="pinfo">
+        <div class="stat-block">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-value pscore">0</span>
+        </div>
+        <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
+        <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
+      </div>
+      <div class="pstage"><canvas class="board"></canvas></div>
+      <div class="pkeys">A/D 移動・W 回転・S 下・Shift 落下・Q ホールド</div>
+    </section>
+
+    <!-- Player B（対戦時のみ表示） -->
+    <section class="player" data-player="1">
+      <div class="pinfo">
+        <div class="stat-block">
+          <span class="stat-label">SCORE</span>
+          <span class="stat-value pscore">0</span>
+        </div>
+        <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
+        <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
+      </div>
+      <div class="pstage"><canvas class="board"></canvas></div>
+      <div class="pkeys">← → 移動・↑ 回転・↓ 下・/ 落下・. ホールド</div>
+    </section>
+
+  </div>
+
+  <!-- スマホ用コントローラー（ソロ用 / Player A 操作） -->
   <footer id="controller">
     <div class="pad pad-left">
       <button class="ctrl-btn" data-act="left" aria-label="左">◀</button>
@@ -46,7 +68,7 @@
     </div>
   </footer>
 
-  <!-- 操作ガイド（PC向け・画面端に表示） -->
+  <!-- 操作ガイド（ソロ・PC向け・画面端） -->
   <aside id="keyguide" class="key-guide">
     <h2>CONTROLS</h2>
     <ul>
@@ -66,8 +88,9 @@
       <div class="logo">サンド<span class="logo-accent">テトリス</span></div>
       <p class="tagline">SAND&nbsp;TETRIS</p>
       <p class="desc">ブロックは着地すると砂になって崩れます。<br>同じ色の砂が左の壁から右の壁までつながると、まとめて消えてスコアになります。</p>
-      <button id="startBtn" class="primary-btn">スタート</button>
-      <p class="hint">PC: ← → 移動 / ↑ 回転 / ↓ 落下 / Space 一気に落下 / C ホールド</p>
+      <button id="startBtn" class="primary-btn">ソロでプレイ</button>
+      <button id="vsBtn" class="secondary-btn">2人で対戦（ローカル）</button>
+      <p class="hint">対戦はキーボード推奨。消すと相手に虹色ブロックを送り込めます。</p>
     </div>
   </section>
 
@@ -85,8 +108,8 @@
   <!-- ゲームオーバー画面 -->
   <section id="gameoverScreen" class="overlay hidden">
     <div class="overlay-card">
-      <h1 class="screen-title">ゲームオーバー</h1>
-      <p class="desc">スコア <span id="finalScore">0</span></p>
+      <h1 class="screen-title" id="goTitle">ゲームオーバー</h1>
+      <p class="desc" id="goDesc">スコア <span id="finalScore">0</span></p>
       <button id="retryBtn" class="primary-btn">もう一度</button>
       <button id="homeBtn" class="secondary-btn">ホームへ</button>
     </div>

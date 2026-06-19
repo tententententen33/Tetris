@@ -1,0 +1,15 @@
+{
+  "name": "サンドテトリス",
+  "short_name": "サンドテトリス",
+  "description": "砂が崩れて積もるテトリス。同じ色を端から端までつなげて消そう。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0f1a",
+  "theme_color": "#0d0f1a",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.svg", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

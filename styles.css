@@ -29,11 +29,12 @@ html, body {
   flex-direction: column;
   align-items: center;
   height: 100dvh;
-  max-width: 520px;
   margin: 0 auto;
   padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
-  gap: 8px;
+  gap: 6px;
 }
+#app.mode-solo { max-width: 520px; }
+#app.mode-versus { max-width: 1000px; }
 
 /* ===== 上部バー ===== */
 #topbar {
@@ -42,23 +43,19 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 4px 4px;
+  padding: 10px 4px 2px;
 }
-.stat-block { display: flex; flex-direction: column; line-height: 1.1; }
-.stat-label { font-size: 10px; letter-spacing: 2px; color: var(--accent); opacity: 0.9; }
-.stat-value { font-size: 26px; font-weight: 800; }
-.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.slot-cv {
-  width: 52px; height: 52px;
-  background: #000;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  image-rendering: pixelated;
+.brand { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+.brand span { color: var(--accent); }
+.timer {
+  font-size: 22px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
 }
 .icon-btn {
-  width: 46px; height: 46px;
+  width: 44px; height: 44px;
   flex: 0 0 auto;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
@@ -68,17 +65,54 @@ html, body {
 }
 .icon-btn:active { transform: scale(0.92); background: #20263d; }
 
-/* ===== ステージ ===== */
-#stage {
-  position: relative;
+/* ===== アリーナ ===== */
+#arena {
   flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+.player {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.mode-solo .player[data-player="1"] { display: none; }
+
+.pinfo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stat-block { display: flex; flex-direction: column; line-height: 1.1; }
+.stat-label { font-size: 9px; letter-spacing: 2px; color: var(--accent); opacity: 0.9; }
+.stat-value { font-size: 22px; font-weight: 800; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.slot-cv {
+  width: 46px; height: 46px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.pstage {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 0;
 }
-#cv {
+.board {
   height: 100%;
   max-height: 100%;
   max-width: 100%;
@@ -90,19 +124,23 @@ html, body {
   box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.8);
   image-rendering: pixelated;
 }
+.pkeys { font-size: 11px; color: var(--muted); text-align: center; min-height: 14px; }
+.mode-solo .pkeys { display: none; }
 
 /* ===== コントローラー ===== */
 #controller {
   width: 100%;
+  max-width: 520px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 6px 6px 10px;
 }
+.mode-versus #controller { display: none; }
 .pad { display: flex; gap: 10px; }
 .ctrl-btn {
-  width: 62px; height: 62px;
+  width: 60px; height: 60px;
   font-size: 24px;
   color: var(--text);
   background: linear-gradient(180deg, #232a44, #181d2e);
@@ -118,10 +156,7 @@ html, body {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #0c0f18, 0 2px 6px rgba(0,0,0,0.4);
 }
-.ctrl-btn.rotate {
-  background: linear-gradient(180deg, #3a4a78, #283357);
-  font-size: 28px;
-}
+.ctrl-btn.rotate { background: linear-gradient(180deg, #3a4a78, #283357); font-size: 28px; }
 .ctrl-btn.drop {
   background: linear-gradient(180deg, var(--accent2), var(--accent));
   color: #1a1206;
@@ -129,21 +164,19 @@ html, body {
 }
 .ctrl-btn.drop:active { box-shadow: 0 1px 0 #a86b38, 0 2px 6px rgba(0,0,0,0.4); }
 .ctrl-btn.hold {
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: column; gap: 1px;
   background: linear-gradient(180deg, #2c3a5e, #1c2540);
 }
 .ctrl-btn.hold .big { font-size: 20px; line-height: 1; }
 .ctrl-btn.hold .cap { font-size: 9px; letter-spacing: 1px; opacity: 0.8; }
 
-/* 狭い画面ではボタンを少し縮小 */
 @media (max-width: 400px) {
-  .ctrl-btn { width: 54px; height: 54px; font-size: 21px; }
+  .ctrl-btn { width: 52px; height: 52px; font-size: 21px; }
   .pad { gap: 7px; }
   #controller { gap: 8px; }
 }
 
-/* ===== 操作ガイド（PC向け・画面左端） ===== */
+/* ===== 操作ガイド（ソロ・PC向け・画面左端） ===== */
 .key-guide {
   position: fixed;
   left: 18px;
@@ -157,27 +190,16 @@ html, body {
   box-shadow: 0 10px 30px rgba(0,0,0,0.45);
   z-index: 5;
 }
-.key-guide h2 {
-  margin: 0 0 12px;
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--accent);
-  text-align: center;
-}
+.key-guide h2 { margin: 0 0 12px; font-size: 11px; letter-spacing: 3px; color: var(--accent); text-align: center; }
 .key-guide ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 .key-guide li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .key-guide span { color: var(--muted); }
 .key-guide kbd {
   flex: 0 0 auto;
-  min-width: 30px;
-  height: 30px;
+  min-width: 30px; height: 30px;
   padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: inherit; font-size: 14px; font-weight: 700;
   color: var(--text);
   background: linear-gradient(180deg, #2a3252, #1a2036);
   border: 1px solid #3a4570;
@@ -186,18 +208,14 @@ html, body {
 }
 .key-guide kbd.wide { min-width: 64px; font-size: 11px; letter-spacing: 1px; }
 
-/* 画面が狭い、またはタッチ主体の端末では非表示 */
-@media (max-width: 920px), (pointer: coarse) {
-  .key-guide { display: none; }
-}
+/* 狭い/タッチ端末、対戦時は左ガイド非表示 */
+@media (max-width: 920px), (pointer: coarse) { .key-guide { display: none; } }
+.mode-versus ~ .key-guide, #app.mode-versus .key-guide { display: none; }
 
-/* ===== オーバーレイ（ホーム/一時停止/GO） ===== */
+/* ===== オーバーレイ ===== */
 .overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
   padding: 24px;
   background: rgba(5, 7, 15, 0.86);
   backdrop-filter: blur(4px);
@@ -205,20 +223,11 @@ html, body {
 }
 .overlay.hidden { display: none; }
 .overlay-card {
-  width: 100%;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; text-align: center;
 }
-.logo {
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  text-shadow: 0 4px 0 rgba(168, 107, 56, 0.4);
-}
+.logo { font-size: 42px; font-weight: 900; letter-spacing: 1px; text-shadow: 0 4px 0 rgba(168,107,56,0.4); }
 .logo-accent { color: var(--accent); }
 .tagline { margin: -8px 0 0; letter-spacing: 6px; font-size: 12px; color: var(--muted); }
 .screen-title { font-size: 34px; font-weight: 800; margin: 0; }
@@ -226,37 +235,22 @@ html, body {
 .hint { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
 
 .primary-btn {
-  margin-top: 6px;
-  width: 100%;
-  max-width: 260px;
-  padding: 15px 28px;
-  font-size: 18px;
-  font-weight: 800;
+  margin-top: 6px; width: 100%; max-width: 260px;
+  padding: 15px 28px; font-size: 18px; font-weight: 800;
   color: #1a1206;
   background: linear-gradient(180deg, var(--accent2), var(--accent));
-  border: none;
-  border-radius: 32px;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(255, 176, 112, 0.35);
+  border: none; border-radius: 32px; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(255,176,112,0.35);
   transition: transform 0.05s;
 }
 .primary-btn:active { transform: translateY(2px); }
 .secondary-btn {
-  width: 100%;
-  max-width: 260px;
-  padding: 13px 28px;
-  font-size: 15px;
-  font-weight: 700;
+  width: 100%; max-width: 260px;
+  padding: 13px 28px; font-size: 15px; font-weight: 700;
   color: var(--text);
   background: transparent;
   border: 1.5px solid var(--border);
-  border-radius: 32px;
-  cursor: pointer;
+  border-radius: 32px; cursor: pointer;
   transition: transform 0.05s, background 0.15s;
 }
 .secondary-btn:active { transform: translateY(2px); background: rgba(255,255,255,0.05); }
-
-/* ===== デスクトップ：コントローラーは控えめに ===== */
-@media (hover: hover) and (pointer: fine) and (min-width: 700px) {
-  #controller { opacity: 0.85; }
-}
