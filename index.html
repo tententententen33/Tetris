@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0d0f1a" />
-<title>砂テトリス - Sand Tetris</title>
+<title>サンドテトリス - Sand Tetris</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,9 +16,13 @@
       <span class="stat-label">SCORE</span>
       <span class="stat-value" id="score">0</span>
     </div>
-    <div class="next-block">
+    <div class="slot">
+      <span class="stat-label">HOLD</span>
+      <canvas id="holdCv" class="slot-cv" width="80" height="80"></canvas>
+    </div>
+    <div class="slot">
       <span class="stat-label">NEXT</span>
-      <canvas id="nextCv" width="80" height="80"></canvas>
+      <canvas id="nextCv" class="slot-cv" width="80" height="80"></canvas>
     </div>
     <button id="pauseBtn" class="icon-btn" aria-label="一時停止">❚❚</button>
   </header>
@@ -36,22 +40,34 @@
       <button class="ctrl-btn" data-act="right" aria-label="右">▶</button>
     </div>
     <div class="pad pad-right">
+      <button class="ctrl-btn hold" data-act="hold" aria-label="ホールド"><span class="big">⇄</span><span class="cap">HOLD</span></button>
       <button class="ctrl-btn rotate" data-act="rotate" aria-label="回転">⟳</button>
       <button class="ctrl-btn drop" data-act="hard" aria-label="ハードドロップ">⤓</button>
     </div>
   </footer>
 
+  <!-- 操作ガイド（PC向け・画面端に表示） -->
+  <aside id="keyguide" class="key-guide">
+    <h2>CONTROLS</h2>
+    <ul>
+      <li><kbd>↑</kbd><span>回転</span></li>
+      <li><kbd>←</kbd><span>左へ</span></li>
+      <li><kbd>→</kbd><span>右へ</span></li>
+      <li><kbd>↓</kbd><span>下へ</span></li>
+      <li><kbd class="wide">Space</kbd><span>一気に落下</span></li>
+      <li><kbd>C</kbd><span>ホールド</span></li>
+      <li><kbd>P</kbd><span>一時停止</span></li>
+    </ul>
+  </aside>
+
   <!-- ホーム画面 -->
   <section id="homeScreen" class="overlay">
     <div class="overlay-card">
-      <div class="logo">
-        <span class="logo-sand">砂</span>
-        <span class="logo-main">テトリス</span>
-      </div>
+      <div class="logo">サンド<span class="logo-accent">テトリス</span></div>
       <p class="tagline">SAND&nbsp;TETRIS</p>
       <p class="desc">ブロックは着地すると砂になって崩れます。<br>同じ色の砂が左の壁から右の壁までつながると、まとめて消えてスコアになります。</p>
       <button id="startBtn" class="primary-btn">スタート</button>
-      <p class="hint">PCは ← → 移動 / ↑ 回転 / ↓ 落下 / Space 一気に落下</p>
+      <p class="hint">PC: ← → 移動 / ↑ 回転 / ↓ 落下 / Space 一気に落下 / C ホールド</p>
     </div>
   </section>
 
@@ -59,9 +75,10 @@
   <section id="pauseScreen" class="overlay hidden">
     <div class="overlay-card">
       <h1 class="screen-title">一時停止</h1>
-      <p class="desc">続けるか、最初からやり直せます。</p>
+      <p class="desc">続けるか、やり直すか、ホームに戻れます。</p>
       <button id="resumeBtn" class="primary-btn">再開</button>
       <button id="restartBtn" class="secondary-btn">やり直す</button>
+      <button id="pauseHomeBtn" class="secondary-btn">ホーム画面へ戻る</button>
     </div>
   </section>
 

@@ -46,6 +46,9 @@
   };
   const SHAPE_KEYS = Object.keys(SHAPES);
 
+  // 左右対称で回転しても見た目が変わらない（=回転で位置がズレるだけ）ブロックは回転無効
+  const NO_ROTATE = new Set(["DOT", "O", "PLUS"]);
+
   // ===== Canvas =====
   const cv = document.getElementById("cv");
   cv.width = W; cv.height = H;
@@ -57,6 +60,8 @@
 
   const nextCv = document.getElementById("nextCv");
   const nctx = nextCv.getContext("2d");
+  const holdCv = document.getElementById("holdCv");
+  const hctx = holdCv.getContext("2d");
 
   const scoreEl = document.getElementById("score");
   const finalScoreEl = document.getElementById("finalScore");
@@ -82,6 +87,9 @@
   let piece = null;
   let nextType = null;
   let nextColor = 0;
+  let holdType = null;
+  let holdColor = 0;
+  let holdUsed = false;
   let score = 0;
   let running = false;
   let paused = false;
@@ -106,6 +114,7 @@
   }
 
   function rotate(p) {
+    if (NO_ROTATE.has(p.type)) return; // 対称ブロックは回転しない
     const rotated = p.cells.map(([x, y]) => [3 - y, x]);
     const test = { ...p, cells: rotated };
     if (!collide(test, 0, 0)) { p.cells = rotated; return; }
@@ -165,7 +174,28 @@
   function lockPiece() {
     stamp(piece);
     piece = null;
+    holdUsed = false; // 設置したらホールド再使用可
     spawn();
+  }
+
+  // ホールド：現在のピースを保管。すでにある場合は入れ替え。1回設置するまで1度だけ。
+  function doHold() {
+    if (!piece || holdUsed) return;
+    if (holdType === null) {
+      holdType = piece.type;
+      holdColor = piece.color;
+      piece = null;
+      holdUsed = true;
+      spawn();
+    } else {
+      const t = holdType, c = holdColor;
+      holdType = piece.type;
+      holdColor = piece.color;
+      piece = makePiece(t, c);
+      holdUsed = true;
+      if (collide(piece, 0, 0)) endGame();
+    }
+    drawHold();
   }
 
   // ===== 砂の物理 =====
@@ -292,21 +322,23 @@
     ctx.drawImage(off, 0, 0, GW, GH, 0, 0, W, H);
   }
 
-  function drawNext() {
-    const size = nextCv.width;
-    nctx.clearRect(0, 0, size, size);
-    if (!nextType) return;
-    const cells = SHAPES[nextType];
-    // 4x4を中央に収める
+  function drawPreview(c2d, canvas, type, color) {
+    const size = canvas.width;
+    c2d.clearRect(0, 0, size, size);
+    if (!type) return;
+    const cells = SHAPES[type];
     const s = size / 4.5;
     const ox = (size - 4 * s) / 2 + s * 0.25;
     const oy = (size - 4 * s) / 2 + s * 0.25;
-    const p = PALETTE[nextColor];
-    nctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+    const p = PALETTE[color];
+    c2d.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
     for (const [x, y] of cells) {
-      nctx.fillRect(ox + x * s, oy + y * s, s - 2, s - 2);
+      c2d.fillRect(ox + x * s, oy + y * s, s - 2, s - 2);
     }
   }
+
+  function drawNext() { drawPreview(nctx, nextCv, nextType, nextColor); }
+  function drawHold() { drawPreview(hctx, holdCv, holdType, holdColor); }
 
   function hardDrop() {
     if (!piece) return;
@@ -368,6 +400,7 @@
       case "KeyX":       doRotate();  e.preventDefault(); break;
       case "ArrowDown":  softDrop = true; e.preventDefault(); break;
       case "Space":      hardDrop();  e.preventDefault(); break;
+      case "KeyC":       doHold();    e.preventDefault(); break;
     }
   });
   document.addEventListener("keyup", (e) => {
@@ -400,6 +433,7 @@
         case "down":   softDrop = true; break;
         case "rotate": doRotate(); break;
         case "hard":   hardDrop(); break;
+        case "hold":   doHold(); break;
       }
     };
     const release = (e) => {
@@ -434,12 +468,16 @@
   document.getElementById("restartBtn").addEventListener("click", startGame);
   document.getElementById("startBtn").addEventListener("click", startGame);
   document.getElementById("retryBtn").addEventListener("click", startGame);
-  document.getElementById("homeBtn").addEventListener("click", () => {
+  function goHome() {
     running = false; gameOver = false; paused = false;
     grid.fill(0); piece = null;
+    holdType = null; holdColor = 0; holdUsed = false;
+    drawHold();
     render();
     showScreen("home");
-  });
+  }
+  document.getElementById("homeBtn").addEventListener("click", goHome);
+  document.getElementById("pauseHomeBtn").addEventListener("click", goHome);
 
   // ===== 開始 / 終了 =====
   function startGame() {
@@ -452,10 +490,14 @@
     piece = null;
     nextType = null;
     nextColor = 0;
+    holdType = null;
+    holdColor = 0;
+    holdUsed = false;
     softDrop = false;
     dropTimer = 0;
     sandAccumulator = 0;
     hideScreens();
+    drawHold();
     spawn();
     lastTime = performance.now();
   }
