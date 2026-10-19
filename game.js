@@ -813,6 +813,19 @@
     bannerEl.classList.add("hidden");
     comboDisplayEl.classList.add("hidden");
     chainDisplayEl.classList.add("hidden");
+    
+    // レーン数表示を元の位置に戻す
+    const pstage = document.querySelector(".pstage");
+    const pinfo = document.querySelector(".pinfo");
+    if (pstage && comboDisplayEl) {
+      if (pinfo && pinfo.contains(comboDisplayEl)) {
+        pinfo.removeChild(comboDisplayEl);
+      }
+      if (!pstage.contains(comboDisplayEl)) {
+        pstage.appendChild(comboDisplayEl);
+      }
+    }
+    
     hideScreens();
     shapeBag = []; // 7-bagをリセット
     game.reset({ startGarbageRows: levelStartRows(level) });
@@ -829,6 +842,19 @@
     bannerEl.classList.add("hidden");
     comboDisplayEl.classList.add("hidden");
     chainDisplayEl.classList.add("hidden");
+    
+    // レーン数表示を元の位置に戻す
+    const pstage = document.querySelector(".pstage");
+    const pinfo = document.querySelector(".pinfo");
+    if (pstage && comboDisplayEl) {
+      if (pinfo && pinfo.contains(comboDisplayEl)) {
+        pinfo.removeChild(comboDisplayEl);
+      }
+      if (!pstage.contains(comboDisplayEl)) {
+        pstage.appendChild(comboDisplayEl);
+      }
+    }
+    
     hideScreens();
     shapeBag = []; // 7-bagをリセット
     game.reset();
@@ -849,13 +875,26 @@
     
     // オンライン対戦時: レーン数表示をpinfoに移動
     const pinfo = document.querySelector(".pinfo");
-    if (pinfo && comboDisplayEl && !pinfo.contains(comboDisplayEl)) {
-      comboDisplayEl.classList.remove("hidden");
-      // ホールドスロットの後に挿入
-      const holdSlot = pinfo.querySelector(".slot");
-      if (holdSlot && holdSlot.nextSibling) {
-        pinfo.insertBefore(comboDisplayEl, holdSlot.nextSibling);
+    const pstage = document.querySelector(".pstage");
+    if (pinfo && comboDisplayEl) {
+      // 既にpinfoに含まれていない場合のみ移動
+      if (!pinfo.contains(comboDisplayEl)) {
+        // pstageから削除
+        if (pstage && pstage.contains(comboDisplayEl)) {
+          pstage.removeChild(comboDisplayEl);
+        }
+        // ホールドスロットの後に挿入
+        const slots = pinfo.querySelectorAll(".slot");
+        if (slots.length > 0) {
+          const holdSlot = slots[0];
+          if (holdSlot.nextSibling) {
+            pinfo.insertBefore(comboDisplayEl, holdSlot.nextSibling);
+          } else {
+            pinfo.appendChild(comboDisplayEl);
+          }
+        }
       }
+      comboDisplayEl.classList.remove("hidden");
     }
     
     shapeBag = []; // 7-bagをリセット
@@ -905,8 +944,16 @@
     
     // レーン数表示を元の位置（pstage）に戻す
     const pstage = document.querySelector(".pstage");
-    if (pstage && comboDisplayEl && !pstage.contains(comboDisplayEl)) {
-      pstage.appendChild(comboDisplayEl);
+    const pinfo = document.querySelector(".pinfo");
+    if (pstage && comboDisplayEl) {
+      // pinfoから削除
+      if (pinfo && pinfo.contains(comboDisplayEl)) {
+        pinfo.removeChild(comboDisplayEl);
+      }
+      // pstageに戻す（まだ含まれていない場合）
+      if (!pstage.contains(comboDisplayEl)) {
+        pstage.appendChild(comboDisplayEl);
+      }
     }
     
     mode = "solo"; setModeClass();
