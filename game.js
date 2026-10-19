@@ -680,6 +680,7 @@
   const bannerEl = document.getElementById("banner");
   const oppScoreEl = document.getElementById("oppScore");
   const oppStateEl = document.getElementById("oppState");
+  const oppLaneEl = document.getElementById("oppLane");
   const comboDisplayEl = document.getElementById("comboDisplay");
   const comboCountEl = comboDisplayEl.querySelector(".combo-count");
   const chainDisplayEl = document.getElementById("chainDisplay");
@@ -699,7 +700,7 @@
   let running = false, paused = false, over = false;
   let elapsed = 0;
   let game = null;
-  let oppScore = 0, oppConnected = false;
+  let oppScore = 0, oppConnected = false, oppLane = 0;
   let soloLevel = 1, soloTarget = 3000, soloCleared = false;
   let blackTimer = 0;
 
@@ -713,6 +714,9 @@
 
   function onLocalClear(count, chain, lane, shouldSendGarbage) {
     if (mode === "online") {
+      // レーン数を常に送信
+      Net.send({ t: "lane", v: lane });
+      
       // 5レーン到達でお邪魔ブロックを送る
       if (shouldSendGarbage) {
         Net.send({ t: "garbage", n: 1 });
@@ -836,7 +840,7 @@
     setModeClass();
     ensureGame();
     elapsed = 0; over = false; paused = false; running = true;
-    oppScore = 0; oppConnected = true; updateOpp();
+    oppScore = 0; oppConnected = true; oppLane = 0; updateOpp();
     blackTimer = BLACK_START_SEC - BLACK_INTERVAL_SEC;
     bannerEl.classList.add("hidden");
     comboDisplayEl.classList.add("hidden");
@@ -902,6 +906,9 @@
   function updateOpp() {
     oppScoreEl.textContent = oppScore;
     oppStateEl.classList.toggle("on", oppConnected);
+    if (oppLaneEl) {
+      oppLaneEl.textContent = `${oppLane % 5}/5`;
+    }
   }
   function fmtTime(sec) {
     const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
@@ -1111,6 +1118,7 @@
         if (!d || typeof d !== "object") return;
         if (d.t === "garbage") { if (game) game.receiveGarbage(Math.max(1, Math.min(4, d.n | 0))); }
         else if (d.t === "score") { oppScore = d.v || 0; updateOpp(); }
+        else if (d.t === "lane") { oppLane = d.v || 0; updateOpp(); }
         else if (d.t === "dead") { oppScore = d.score || oppScore; updateOpp(); endOnline(true); }
       },
       onClose: () => {
