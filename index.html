@@ -101,6 +101,7 @@
       <button id="soloBtn" class="primary-btn">ソロ（レベル制）</button>
       <button id="endlessBtn" class="secondary-btn">エンドレスモード</button>
       <button id="onlineBtn" class="secondary-btn">オンライン対戦</button>
+      <button id="rulesBtn" class="tertiary-btn">📖 ルール説明</button>
     </div>
   </section>
 
@@ -153,6 +154,139 @@
       <p id="goExtra" class="levelup-note hidden"></p>
       <button id="retryBtn" class="primary-btn">もう一度</button>
       <button id="homeBtn" class="secondary-btn">ホームへ</button>
+    </div>
+  </section>
+
+  <!-- ルール説明画面 -->
+  <section id="rulesScreen" class="overlay hidden">
+    <div class="rules-card">
+      <h1 class="screen-title">📖 ルール説明</h1>
+      
+      <div class="rules-content">
+        <!-- 基本ルール -->
+        <div class="rule-section">
+          <h2 class="rule-title">🎮 基本ルール</h2>
+          <p class="rule-text">落ちてくるブロックを操作して、右端まで同じ色を繋げて消すゲームです。</p>
+          <div class="rule-img-wrapper">
+            <svg class="rule-img" viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+              <!-- 盤面 -->
+              <rect x="20" y="20" width="260" height="110" fill="#0d0f1a" stroke="#2a3050" stroke-width="2" rx="4"/>
+              <!-- ブロック -->
+              <rect x="40" y="80" width="20" height="20" fill="#e85d3a" opacity="0.8"/>
+              <rect x="60" y="80" width="20" height="20" fill="#e85d3a" opacity="0.8"/>
+              <rect x="80" y="80" width="20" height="20" fill="#e85d3a" opacity="0.8"/>
+              <rect x="100" y="80" width="20" height="20" fill="#e85d3a" opacity="0.8"/>
+              <!-- 矢印 -->
+              <path d="M 150 90 L 180 90 L 170 80 M 180 90 L 170 100" stroke="#ffb070" stroke-width="3" fill="none"/>
+              <!-- 消える -->
+              <text x="210" y="95" fill="#ffb070" font-size="20" font-weight="bold">消える！</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 砂システム -->
+        <div class="rule-section">
+          <h2 class="rule-title">⏬ 砂のように落ちる</h2>
+          <p class="rule-text">ブロックは砂のように下に落ちて、隙間があれば横にも広がります。</p>
+          <div class="rule-img-wrapper">
+            <svg class="rule-img" viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+              <!-- Before -->
+              <rect x="20" y="20" width="100" height="110" fill="#0d0f1a" stroke="#2a3050" stroke-width="2" rx="4"/>
+              <text x="40" y="15" fill="#e8ecff" font-size="12">置いた直後</text>
+              <rect x="50" y="40" width="15" height="15" fill="#3db052"/>
+              <rect x="65" y="40" width="15" height="15" fill="#3db052"/>
+              <!-- Arrow -->
+              <path d="M 130 75 L 160 75 L 150 65 M 160 75 L 150 85" stroke="#ffb070" stroke-width="2" fill="none"/>
+              <!-- After -->
+              <rect x="180" y="20" width="100" height="110" fill="#0d0f1a" stroke="#2a3050" stroke-width="2" rx="4"/>
+              <text x="200" y="15" fill="#e8ecff" font-size="12">落下後</text>
+              <rect x="210" y="100" width="15" height="15" fill="#3db052"/>
+              <rect x="225" y="100" width="15" height="15" fill="#3db052"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 連鎖 -->
+        <div class="rule-section">
+          <h2 class="rule-title">🔗 連鎖で高得点</h2>
+          <p class="rule-text">ブロックが消えた後、砂が落ちてまた消えると「連鎖」になり高得点！</p>
+          <div class="rule-points">
+            <span class="point-item">2連鎖 = 1.3倍</span>
+            <span class="point-item">3連鎖 = 1.45倍</span>
+            <span class="point-item">10連鎖 = 2.0倍</span>
+          </div>
+        </div>
+
+        <!-- 最小サイズ -->
+        <div class="rule-section">
+          <h2 class="rule-title">📏 4マス以上で消える</h2>
+          <p class="rule-text">右端まで繋がっても、4マス未満の小さな塊は消えません。</p>
+          <div class="rule-img-wrapper">
+            <svg class="rule-img" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
+              <!-- 消えない例 -->
+              <rect x="20" y="20" width="100" height="60" fill="#0d0f1a" stroke="#2a3050" stroke-width="2" rx="4"/>
+              <text x="35" y="15" fill="#e8ecff" font-size="12">❌ 3マス（消えない）</text>
+              <rect x="40" y="40" width="12" height="12" fill="#3a82e8"/>
+              <rect x="52" y="40" width="12" height="12" fill="#3a82e8"/>
+              <rect x="64" y="40" width="12" height="12" fill="#3a82e8"/>
+              <!-- 消える例 -->
+              <rect x="180" y="20" width="100" height="60" fill="#0d0f1a" stroke="#2a3050" stroke-width="2" rx="4"/>
+              <text x="195" y="15" fill="#e8ecff" font-size="12">✅ 4マス（消える！）</text>
+              <rect x="200" y="40" width="12" height="12" fill="#f2c433"/>
+              <rect x="212" y="40" width="12" height="12" fill="#f2c433"/>
+              <rect x="224" y="40" width="12" height="12" fill="#f2c433"/>
+              <rect x="236" y="40" width="12" height="12" fill="#f2c433"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 操作方法 -->
+        <div class="rule-section">
+          <h2 class="rule-title">🎮 操作方法</h2>
+          <div class="controls-grid">
+            <div class="control-item">
+              <div class="control-icon">💻 PC</div>
+              <div class="control-desc">
+                <div>← → ：左右移動</div>
+                <div>↑ / X ：回転</div>
+                <div>↓ ：下移動</div>
+                <div>Space ：一気に落下</div>
+                <div>C ：ホールド</div>
+              </div>
+            </div>
+            <div class="control-item">
+              <div class="control-icon">📱 スマホ</div>
+              <div class="control-desc">
+                <div>タップ：回転</div>
+                <div>左右スワイプ：移動</div>
+                <div>下スワイプ：下移動</div>
+                <div>ボタン：ホールド・落下</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- モード説明 -->
+        <div class="rule-section">
+          <h2 class="rule-title">🎯 ゲームモード</h2>
+          <div class="mode-list">
+            <div class="mode-item">
+              <h3>📊 ソロ（レベル制）</h3>
+              <p>目標スコアを達成して次のレベルへ。レベルが上がるほど難しくなります。</p>
+            </div>
+            <div class="mode-item">
+              <h3>♾️ エンドレス</h3>
+              <p>スコアを競うモード。どこまで高得点を出せるか挑戦！</p>
+            </div>
+            <div class="mode-item">
+              <h3>🌐 オンライン対戦</h3>
+              <p>合言葉で友達と対戦。5レーン消すと相手にお邪魔ブロックが飛びます！</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button id="rulesBackBtn" class="primary-btn">ホームへ戻る</button>
     </div>
   </section>
 

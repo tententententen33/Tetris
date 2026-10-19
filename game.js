@@ -692,6 +692,7 @@
     room: document.getElementById("roomScreen"),
     pause: document.getElementById("pauseScreen"),
     gameover: document.getElementById("gameoverScreen"),
+    rules: document.getElementById("rulesScreen"),
   };
   function showScreen(name) { for (const k in screens) screens[k].classList.toggle("hidden", k !== name); }
   function hideScreens() { for (const k in screens) screens[k].classList.add("hidden"); }
@@ -843,9 +844,20 @@
     oppScore = 0; oppConnected = true; oppLane = 0; updateOpp();
     blackTimer = BLACK_START_SEC - BLACK_INTERVAL_SEC;
     bannerEl.classList.add("hidden");
-    comboDisplayEl.classList.add("hidden");
     chainDisplayEl.classList.add("hidden");
     hideScreens();
+    
+    // オンライン対戦時: レーン数表示をpinfoに移動
+    const pinfo = document.querySelector(".pinfo");
+    if (pinfo && comboDisplayEl && !pinfo.contains(comboDisplayEl)) {
+      comboDisplayEl.classList.remove("hidden");
+      // ホールドスロットの後に挿入
+      const holdSlot = pinfo.querySelector(".slot");
+      if (holdSlot && holdSlot.nextSibling) {
+        pinfo.insertBefore(comboDisplayEl, holdSlot.nextSibling);
+      }
+    }
+    
     shapeBag = []; // 7-bagをリセット
     game.reset();
     timerEl.textContent = "00:00";
@@ -890,6 +902,13 @@
   function goHome() {
     running = false; over = false; paused = false;
     if (mode === "online") Net.reset();
+    
+    // レーン数表示を元の位置（pstage）に戻す
+    const pstage = document.querySelector(".pstage");
+    if (pstage && comboDisplayEl && !pstage.contains(comboDisplayEl)) {
+      pstage.appendChild(comboDisplayEl);
+    }
+    
     mode = "solo"; setModeClass();
     refreshHomeStats();
     showScreen("home");
@@ -1170,6 +1189,8 @@
   });
   document.getElementById("homeBtn").addEventListener("click", goHome);
   document.getElementById("pauseHomeBtn").addEventListener("click", goHome);
+  document.getElementById("rulesBtn").addEventListener("click", () => showScreen("rules"));
+  document.getElementById("rulesBackBtn").addEventListener("click", goHome);
 
   // ===== Service Worker（自動更新） =====
   if ("serviceWorker" in navigator) {
