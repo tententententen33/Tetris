@@ -140,6 +140,7 @@
       clearList: null, clearElapsed: 0, clearCount: 0,
       chainCount: 0, // 連鎖カウント
       combo: 0, // コンボカウント
+      laneCount: 0, // レーン消去カウント（オンライン対戦用）
       justLocked: false, // ピースを置いた直後かどうか
       garbageQueue: [],
       garbage: null,
@@ -313,9 +314,10 @@
       const list = state.clearList;
       for (let k = 0; k < list.length; k++) { grid[list[k]] = 0; hide[list[k]] = 0; }
       
-      // 連鎖・コンボボーナスの計算
+      // 連鎖・コンボ・レーンボーナスの計算
       state.chainCount++;
       state.combo++;
+      state.laneCount++; // レーン消去カウント（常にカウント、リセットしない）
       let baseScore = state.clearCount;
       
       // 連鎖ボーナス（減衰システム）
@@ -341,9 +343,13 @@
       state.score += baseScore;
       scoreEl.textContent = state.score;
       
-      // onClear: 3連鎖以上でお邪魔ブロックを送る
-      if (state.chainCount >= 3) {
-        onClear(state.clearCount, state.chainCount);
+      // onClear: レーンは5回到達で発動
+      const shouldSendGarbage = state.laneCount >= 5;
+      onClear(state.clearCount, state.chainCount, state.laneCount, shouldSendGarbage);
+      
+      // 5レーン到達でリセット
+      if (shouldSendGarbage) {
+        state.laneCount = 0;
       }
       
       state.clearList = null; state.clearCount = 0;
@@ -520,6 +526,7 @@
       
       // 連鎖・コンボのリセット条件：
       // ピースを置いた後、砂が落ち着いても何も消えなかった場合
+      // レーン数はリセットしない（常にカウント）
       if (state.justLocked && state.clearList === null) {
         state.chainCount = 0;
         state.combo = 0;
@@ -552,6 +559,7 @@
       state.alive = true;
       state.clearList = null; state.clearElapsed = 0; state.clearCount = 0;
       state.chainCount = 0; state.combo = 0;
+      state.laneCount = 0;
       state.justLocked = false;
       state.garbageQueue = []; state.garbage = null;
       // 開始時のお邪魔ブロック（虹色・最下段から積む）
@@ -593,6 +601,7 @@
       get alive() { return state.alive; },
       get combo() { return state.combo; },
       get chain() { return state.chainCount; },
+      get lane() { return state.laneCount; },
     };
   }
 
@@ -702,10 +711,13 @@
     return Math.max(DROP_MIN, DROP_BASE * Math.pow(SPEED_FACTOR, timeLevel));
   }
 
-  function onLocalClear(count, chain) {
-    if (mode === "online" && chain >= 3) {
-      Net.send({ t: "garbage", n: 1 });
-      Net.send({ t: "score", v: game.score });
+  function onLocalClear(count, chain, lane, shouldSendGarbage) {
+    if (mode === "online") {
+      // 5レーン到達でお邪魔ブロックを送る
+      if (shouldSendGarbage) {
+        Net.send({ t: "garbage", n: 1 });
+        Net.send({ t: "score", v: game.score });
+      }
     }
   }
   function onLocalTopOut() {
@@ -724,6 +736,8 @@
   function updateComboDisplay(combo) {
     if (combo > 0) {
       comboCountEl.textContent = combo;
+      const labelEl = comboDisplayEl.querySelector(".combo-label");
+      labelEl.textContent = "COMBO"; // ラベルを戻す
       comboDisplayEl.classList.remove("hidden");
       // マイルストーン: 5, 10, 20, 30...
       const isMilestone = combo % 5 === 0 && combo >= 5;
@@ -756,6 +770,21 @@
     } else {
       chainDisplayEl.classList.add("hidden");
       clearTimeout(updateChainDisplay._timer);
+    }
+  }
+  
+  function updateLaneDisplay(lane) {
+    // オンライン対戦時は常に表示（0でも表示）
+    const currentLane = lane % 5; // 0-4の範囲
+    comboCountEl.textContent = `${currentLane}/5`;
+    const labelEl = comboDisplayEl.querySelector(".combo-label");
+    labelEl.textContent = "レーン数"; // ラベルを変更
+    comboDisplayEl.classList.remove("hidden");
+    comboDisplayEl.classList.remove("milestone");
+    
+    // 5レーン到達でバナー表示
+    if (lane > 0 && lane % 5 === 0) {
+      showBanner(`5レーン達成！`, 500);
     }
   }
 
@@ -905,8 +934,14 @@
     if (game) {
       game.update(dt, currentDropInterval());
       
-      // コンボ・連鎖の表示を更新
-      updateComboDisplay(game.combo);
+      // コンボ・連鎖・レーンの表示を更新
+      if (mode === "online") {
+        // オンライン対戦時はレーン数を表示
+        updateLaneDisplay(game.lane);
+      } else {
+        // ソロ・エンドレスはコンボを表示
+        updateComboDisplay(game.combo);
+      }
       updateChainDisplay(game.chain);
     }
 

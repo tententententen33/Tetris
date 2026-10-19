@@ -216,14 +216,14 @@ html, body {
   animation: comboMilestone 0.5s ease;
 }
 .combo-count {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 900;
   color: var(--accent);
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   line-height: 1;
 }
 .combo-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 2px;
   color: var(--accent2);
