@@ -20,8 +20,9 @@
   ];
   const NCOL = 4;
 
-  const DROP_BASE = 0.34;
-  const DROP_MIN = 0.06;
+  // 落下速度の調整（初期1.0秒で考える時間を確保）
+  const DROP_BASE = 1.0;
+  const DROP_MIN = 0.15;
   const SPEED_STEP_SEC = 30;   // エンドレス/オンライン：何秒ごとに加速
   const SPEED_FACTOR = 0.85;
   const SOFT_INTERVAL = 0.028;
@@ -50,12 +51,32 @@
     V5:    [[0,0],[0,1],[0,2],[1,2],[2,2]],
     T5:    [[0,0],[1,0],[2,0],[1,1],[1,2]],
     W5:    [[0,0],[0,1],[1,1],[1,2],[2,2]],
+    // 連鎖しやすい縦長・横長ピース
+    VERT4: [[1,0],[1,1],[1,2],[1,3]], // 縦長4マス
+    HORI4: [[0,1],[1,1],[2,1],[3,1]], // 横長4マス（I字と同じだが追加で出現率UP）
+    VERT3: [[1,0],[1,1],[1,2]], // 縦長3マス
+    HORI3: [[0,1],[1,1],[2,1]], // 横長3マス
   };
   const SHAPE_KEYS = Object.keys(SHAPES);
-  const NO_ROTATE = new Set(["DOT", "O", "PLUS"]);
+  const NO_ROTATE = new Set(["DOT", "O", "PLUS"]); // VERT4, VERT3を削除（回転許可）
 
   const idx = (x, y) => y * GW + x;
-  const randType = () => SHAPE_KEYS[(Math.random() * SHAPE_KEYS.length) | 0];
+  
+  // 7-bag システム：全ピースが均等に出現
+  let shapeBag = [];
+  function create7Bag() {
+    const bag = [...SHAPE_KEYS];
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    return bag;
+  }
+  function getNextShape() {
+    if (shapeBag.length === 0) shapeBag = create7Bag();
+    return shapeBag.shift();
+  }
+  
   const randColor = () => 1 + ((Math.random() * NCOL) | 0);
 
   // 虹色お邪魔ブロックの色（毎回ランダム・隣り合う色は変える）
@@ -88,6 +109,10 @@
 
     const nextCv = playerEl.querySelector(".nextCv");
     const nctx = nextCv.getContext("2d");
+    const nextCv2 = playerEl.querySelector(".nextCv2");
+    const nctx2 = nextCv2.getContext("2d");
+    const nextCv3 = playerEl.querySelector(".nextCv3");
+    const nctx3 = nextCv3.getContext("2d");
     const holdCv = playerEl.querySelector(".holdCv");
     const hctx = holdCv.getContext("2d");
     const scoreEl = playerEl.querySelector(".pscore");
@@ -104,7 +129,7 @@
 
     const state = {
       piece: null,
-      nextType: null, nextColor: 0, nextHidden: false,
+      nextQueue: [], // 3個分のキュー [{ type, color, hidden }, ...]
       makeNextHidden: false,
       holdType: null, holdColor: 0, holdUsed: false,
       score: 0,
@@ -113,6 +138,9 @@
       sandAcc: 0,
       alive: true,
       clearList: null, clearElapsed: 0, clearCount: 0,
+      chainCount: 0, // 連鎖カウント
+      combo: 0, // コンボカウント
+      justLocked: false, // ピースを置いた直後かどうか
       garbageQueue: [],
       garbage: null,
     };
@@ -125,6 +153,18 @@
         cy: -2,
       };
     }
+    
+    // NEXTキューを初期化（3個分）
+    function fillNextQueue() {
+      while (state.nextQueue.length < 3) {
+        const type = getNextShape();
+        const color = randColor();
+        const hidden = state.makeNextHidden;
+        state.makeNextHidden = false;
+        state.nextQueue.push({ type, color, hidden });
+      }
+    }
+    
     function collide(p, ox, oy) {
       for (const [bx, by] of p.cells) {
         const sx0 = (p.cx + bx + ox) * CELL;
@@ -169,15 +209,10 @@
       }
     }
     function spawn() {
-      const type = state.nextType ?? randType();
-      const color = state.nextColor || randColor();
-      const hidden = state.nextHidden;
-      state.piece = makePiece(type, color, hidden);
-      // 次のピースを生成
-      state.nextType = randType();
-      state.nextColor = randColor();
-      state.nextHidden = state.makeNextHidden;
-      state.makeNextHidden = false;
+      fillNextQueue();
+      const next = state.nextQueue.shift();
+      state.piece = makePiece(next.type, next.color, next.hidden);
+      fillNextQueue();
       drawNext();
       if (collide(state.piece, 0, 0)) { state.alive = false; onTopOut(); }
     }
@@ -185,6 +220,7 @@
       stamp(state.piece);
       state.piece = null;
       state.holdUsed = false;
+      state.justLocked = true; // ピースを置いた直後フラグ
       spawn();
     }
     function doHold() {
@@ -261,7 +297,8 @@
           if (cy > 0)      tryPush(cx, cy - 1);
           if (cy < GH - 1) tryPush(cx, cy + 1);
         }
-        if (touchRight) {
+        // 右端に触れている かつ 4マス以上の場合のみ消える
+        if (touchRight && n >= 4) {
           for (let k = 0; k < n; k++) result.push(compIdx[k]);
           count += n;
         }
@@ -275,10 +312,42 @@
     function finishClear() {
       const list = state.clearList;
       for (let k = 0; k < list.length; k++) { grid[list[k]] = 0; hide[list[k]] = 0; }
-      state.score += state.clearCount;
+      
+      // 連鎖・コンボボーナスの計算
+      state.chainCount++;
+      state.combo++;
+      let baseScore = state.clearCount;
+      
+      // 連鎖ボーナス（減衰システム）
+      // 2連鎖=1.3倍、3連鎖=1.5倍、5連鎖=1.8倍、10連鎖=2.0倍（頭打ち）
+      if (state.chainCount >= 2) {
+        let chainMultiplier;
+        if (state.chainCount <= 3) {
+          chainMultiplier = 1.0 + state.chainCount * 0.15;
+        } else if (state.chainCount <= 6) {
+          chainMultiplier = 1.45 + (state.chainCount - 3) * 0.1;
+        } else if (state.chainCount <= 10) {
+          chainMultiplier = 1.75 + (state.chainCount - 6) * 0.05;
+        } else {
+          chainMultiplier = 2.0; // 10連鎖以降は2倍で頭打ち
+        }
+        baseScore = Math.floor(baseScore * chainMultiplier);
+      }
+      
+      // コンボボーナス（連続消しで倍率UP、最大3倍）
+      const comboMultiplier = Math.min(1 + state.combo * 0.08, 3.0);
+      baseScore = Math.floor(baseScore * comboMultiplier);
+      
+      state.score += baseScore;
       scoreEl.textContent = state.score;
-      onClear(state.clearCount);
+      
+      // onClear: 3連鎖以上でお邪魔ブロックを送る
+      if (state.chainCount >= 3) {
+        onClear(state.clearCount, state.chainCount);
+      }
+      
       state.clearList = null; state.clearCount = 0;
+      state.justLocked = false; // クリア後はフラグをリセット
     }
 
     function receiveGarbage(lines) { for (let i = 0; i < lines; i++) state.garbageQueue.push(1); }
@@ -354,6 +423,41 @@
       if (state.piece) {
         const p = state.piece;
         const col = PALETTE[p.color];
+        
+        // ゴーストピース（着地予測）を描画
+        let ghostY = p.cy;
+        while (true) {
+          const testPiece = { ...p, cy: ghostY + 1 };
+          if (collide(testPiece, 0, 0)) break;
+          ghostY++;
+        }
+        
+        // ゴーストを半透明で描画（実際のピースと異なる位置の場合のみ）
+        if (ghostY > p.cy) {
+          for (const [bx, by] of p.cells) {
+            const sx0 = (p.cx + bx) * CELL;
+            const sy0 = (ghostY + by) * CELL;
+            for (let yy = 0; yy < CELL; yy++) {
+              const gy = sy0 + yy; if (gy < 0 || gy >= GH) continue;
+              for (let xx = 0; xx < CELL; xx++) {
+                const gx = sx0 + xx; if (gx < 0 || gx >= GW) continue;
+                const gi = idx(gx, gy);
+                if (p.hidden) {
+                  // ブラックサンドのゴースト
+                  const bb = noise[gi] * 0.4;
+                  const v = 42 * bb;
+                  setPx(data, gi, v + 8, v + 8, v + 16);
+                } else {
+                  // 通常のゴースト（半透明）
+                  const bb = noise[gi] * 0.5;
+                  setPx(data, gi, Math.min(255, col.r * bb), Math.min(255, col.g * bb), Math.min(255, col.b * bb));
+                }
+              }
+            }
+          }
+        }
+        
+        // 実際のピースを描画
         for (const [bx, by] of p.cells) {
           const sx0 = (p.cx + bx) * CELL;
           const sy0 = (p.cy + by) * CELL;
@@ -383,7 +487,20 @@
       c2d.fillStyle = hidden ? "#23262f" : `rgb(${PALETTE[color].r},${PALETTE[color].g},${PALETTE[color].b})`;
       for (const [x, y] of cells) c2d.fillRect(ox + x * s, oy + y * s, s - 1, s - 1);
     }
-    function drawNext() { drawPreview(nctx, nextCv, state.nextType, state.nextColor, state.nextHidden); }
+    function drawNext() {
+      if (state.nextQueue.length >= 1) {
+        const n1 = state.nextQueue[0];
+        drawPreview(nctx, nextCv, n1.type, n1.color, n1.hidden);
+      }
+      if (state.nextQueue.length >= 2) {
+        const n2 = state.nextQueue[1];
+        drawPreview(nctx2, nextCv2, n2.type, n2.color, n2.hidden);
+      }
+      if (state.nextQueue.length >= 3) {
+        const n3 = state.nextQueue[2];
+        drawPreview(nctx3, nextCv3, n3.type, n3.color, n3.hidden);
+      }
+    }
     function drawHold() { drawPreview(hctx, holdCv, state.holdType, state.holdColor, false); }
 
     function update(dt, dropInterval) {
@@ -398,7 +515,17 @@
       let steps = 0;
       while (state.sandAcc >= SAND_STEP && steps < 4) { stepSand(); state.sandAcc -= SAND_STEP; steps++; }
       updateGarbage(dt, dropInterval);
+      
       detectClear();
+      
+      // 連鎖・コンボのリセット条件：
+      // ピースを置いた後、砂が落ち着いても何も消えなかった場合
+      if (state.justLocked && state.clearList === null) {
+        state.chainCount = 0;
+        state.combo = 0;
+        state.justLocked = false;
+      }
+      
       if (state.clearList) { render(); return; }
       if (state.piece) {
         state.dropTimer += dt;
@@ -416,7 +543,7 @@
       opts = opts || {};
       grid.fill(0); hide.fill(0);
       state.piece = null;
-      state.nextType = null; state.nextColor = 0; state.nextHidden = false;
+      state.nextQueue = [];
       state.makeNextHidden = false;
       state.holdType = null; state.holdColor = 0; state.holdUsed = false;
       state.score = 0;
@@ -424,6 +551,8 @@
       state.dropTimer = 0; state.sandAcc = 0;
       state.alive = true;
       state.clearList = null; state.clearElapsed = 0; state.clearCount = 0;
+      state.chainCount = 0; state.combo = 0;
+      state.justLocked = false;
       state.garbageQueue = []; state.garbage = null;
       // 開始時のお邪魔ブロック（虹色・最下段から積む）
       const rows = opts.startGarbageRows || 0;
@@ -436,12 +565,17 @@
         }
       }
       scoreEl.textContent = "0";
-      drawHold(); drawNext();
+      drawHold();
+      fillNextQueue();
+      drawNext();
       spawn();
     }
 
-    // 次のピースをブラックサンドにする予約
-    function scheduleHiddenNext() { state.makeNextHidden = true; }
+    // 次のピースをブラックサンドにする予約（キューの末尾に追加）
+    function scheduleHiddenNext() {
+      state.makeNextHidden = true;
+      fillNextQueue();
+    }
 
     const actions = {
       left:  () => { if (state.piece && !collide(state.piece, -1, 0)) state.piece.cx--; },
@@ -457,6 +591,8 @@
       update, reset, render, actions, receiveGarbage, scheduleHiddenNext,
       get score() { return state.score; },
       get alive() { return state.alive; },
+      get combo() { return state.combo; },
+      get chain() { return state.chainCount; },
     };
   }
 
@@ -474,8 +610,8 @@
   let profile = loadProfile();
   function saveProfile() { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {} }
 
-  // レベルのクリア目標：Lv1=3000、以降+1000ずつ
-  function levelTarget(level) { return 3000 + (level - 1) * 1000; }
+  // レベルのクリア目標：連鎖・コンボがあるので調整（Lv1=5000、以降+1500ずつ）
+  function levelTarget(level) { return 5000 + (level - 1) * 1500; }
   // レベルごとの速度（高いほど速い）
   function levelDropInterval(level) { return Math.max(DROP_MIN, DROP_BASE * Math.pow(0.93, level - 1)); }
   // 開始時のお邪魔ブロック段数：10レベルごとに1段
@@ -535,6 +671,10 @@
   const bannerEl = document.getElementById("banner");
   const oppScoreEl = document.getElementById("oppScore");
   const oppStateEl = document.getElementById("oppState");
+  const comboDisplayEl = document.getElementById("comboDisplay");
+  const comboCountEl = comboDisplayEl.querySelector(".combo-count");
+  const chainDisplayEl = document.getElementById("chainDisplay");
+  const chainCountEl = chainDisplayEl.querySelector(".chain-count");
 
   const screens = {
     home: document.getElementById("homeScreen"),
@@ -562,8 +702,8 @@
     return Math.max(DROP_MIN, DROP_BASE * Math.pow(SPEED_FACTOR, timeLevel));
   }
 
-  function onLocalClear(count) {
-    if (mode === "online") {
+  function onLocalClear(count, chain) {
+    if (mode === "online" && chain >= 3) {
       Net.send({ t: "garbage", n: 1 });
       Net.send({ t: "score", v: game.score });
     }
@@ -579,6 +719,44 @@
     bannerEl.classList.remove("hidden");
     clearTimeout(showBanner._t);
     showBanner._t = setTimeout(() => bannerEl.classList.add("hidden"), ms || 1800);
+  }
+  
+  function updateComboDisplay(combo) {
+    if (combo > 0) {
+      comboCountEl.textContent = combo;
+      comboDisplayEl.classList.remove("hidden");
+      // マイルストーン: 5, 10, 20, 30...
+      const isMilestone = combo % 5 === 0 && combo >= 5;
+      comboDisplayEl.classList.toggle("milestone", isMilestone);
+      if (isMilestone) {
+        showBanner(`${combo}コンボ！`, 500); // 0.5秒で消える
+      }
+      
+      // 1秒後に自動的に消す
+      clearTimeout(updateComboDisplay._timer);
+      updateComboDisplay._timer = setTimeout(() => {
+        comboDisplayEl.classList.add("hidden");
+      }, 1000);
+    } else {
+      comboDisplayEl.classList.add("hidden");
+      clearTimeout(updateComboDisplay._timer);
+    }
+  }
+  
+  function updateChainDisplay(chain) {
+    if (chain > 0) {
+      chainCountEl.textContent = chain;
+      chainDisplayEl.classList.remove("hidden");
+      
+      // 1秒後に自動的に消す
+      clearTimeout(updateChainDisplay._timer);
+      updateChainDisplay._timer = setTimeout(() => {
+        chainDisplayEl.classList.add("hidden");
+      }, 1000);
+    } else {
+      chainDisplayEl.classList.add("hidden");
+      clearTimeout(updateChainDisplay._timer);
+    }
   }
 
   function setModeClass() {
@@ -599,7 +777,10 @@
     playLevelEl.textContent = level;
     soloGoalEl.textContent = `Lv.${level} ・ 目標 ${soloTarget} 点`;
     bannerEl.classList.add("hidden");
+    comboDisplayEl.classList.add("hidden");
+    chainDisplayEl.classList.add("hidden");
     hideScreens();
+    shapeBag = []; // 7-bagをリセット
     game.reset({ startGarbageRows: levelStartRows(level) });
     timerEl.textContent = "00:00";
     lastTime = performance.now();
@@ -612,7 +793,10 @@
     elapsed = 0; over = false; paused = false; running = true;
     blackTimer = BLACK_START_SEC - BLACK_INTERVAL_SEC;
     bannerEl.classList.add("hidden");
+    comboDisplayEl.classList.add("hidden");
+    chainDisplayEl.classList.add("hidden");
     hideScreens();
+    shapeBag = []; // 7-bagをリセット
     game.reset();
     timerEl.textContent = "00:00";
     lastTime = performance.now();
@@ -626,7 +810,10 @@
     oppScore = 0; oppConnected = true; updateOpp();
     blackTimer = BLACK_START_SEC - BLACK_INTERVAL_SEC;
     bannerEl.classList.add("hidden");
+    comboDisplayEl.classList.add("hidden");
+    chainDisplayEl.classList.add("hidden");
     hideScreens();
+    shapeBag = []; // 7-bagをリセット
     game.reset();
     timerEl.textContent = "00:00";
     lastTime = performance.now();
@@ -715,13 +902,21 @@
       }
     }
 
-    if (game) game.update(dt, currentDropInterval());
+    if (game) {
+      game.update(dt, currentDropInterval());
+      
+      // コンボ・連鎖の表示を更新
+      updateComboDisplay(game.combo);
+      updateChainDisplay(game.chain);
+    }
 
-    // ソロ：目標スコア到達でクリア＆次レベル解放
+    // ソロ：目標スコア到達で即座にクリア
     if (mode === "solo" && !soloCleared && game && game.score >= soloTarget) {
       soloCleared = true;
       if (soloLevel + 1 > profile.maxLevel) { profile.maxLevel = soloLevel + 1; saveProfile(); }
-      showBanner(`レベルクリア！ Lv.${soloLevel + 1} 解放`, 2200);
+      running = false;
+      over = true;
+      endSolo();
     }
   }
 
@@ -756,29 +951,102 @@
   function stopRepeat(key) { const id = repeatTimers.get(key); if (id) { clearInterval(id); repeatTimers.delete(key); } }
   function stopAllRepeat() { repeatTimers.forEach(id => clearInterval(id)); repeatTimers.clear(); }
 
+  // ボタン操作（ホールド・ハードドロップのみ）
   document.querySelectorAll("#controller .ctrl-btn").forEach((btn) => {
     const act = btn.dataset.act;
     const press = (e) => {
       e.preventDefault();
       if (!running || paused || over || !game) return;
-      switch (act) {
-        case "left":   startRepeat("left", game.actions.left); break;
-        case "right":  startRepeat("right", game.actions.right); break;
-        case "down":   game.actions.softOn(); break;
-        case "rotate": game.actions.rotate(); break;
-        case "hard":   game.actions.hard(); break;
-        case "hold":   game.actions.hold(); break;
-      }
-    };
-    const release = (e) => {
-      e.preventDefault();
-      if (act === "left" || act === "right") stopRepeat(act);
-      if (act === "down" && game) game.actions.softOff();
+      if (act === "hard") game.actions.hard();
+      else if (act === "hold") game.actions.hold();
     };
     btn.addEventListener("pointerdown", press);
-    btn.addEventListener("pointerup", release);
-    btn.addEventListener("pointercancel", release);
-    btn.addEventListener("pointerleave", release);
+  });
+
+  // 盤面タップ・スワイプ操作
+  const boardEl = document.querySelector(".board");
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  let isSwiping = false;
+  let lastMoveTime = 0; // 最後に移動した時刻
+  let isPointerDown = false; // ポインターが押されているか
+
+  boardEl.addEventListener("pointerdown", (e) => {
+    if (!running || paused || over || !game) return;
+    isPointerDown = true;
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+    touchStartTime = Date.now();
+    isSwiping = false;
+    lastMoveTime = 0;
+  });
+
+  boardEl.addEventListener("pointermove", (e) => {
+    if (!running || paused || over || !game) return;
+    // ポインターが押されていない場合は無視（ホバーバグ対策）
+    if (!isPointerDown) return;
+    if (touchStartTime === 0) return;
+    
+    const dx = e.clientX - touchStartX;
+    const dy = e.clientY - touchStartY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const now = Date.now();
+    
+    // スワイプ判定（15px以上移動）
+    if (dist > 15) {
+      isSwiping = true;
+      
+      // 横スワイプ（左右移動）- 100ms間隔で制限
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (now - lastMoveTime >= 100) {
+          if (dx > 0 && dx > 30) {
+            game.actions.right();
+            touchStartX = e.clientX; // 連続移動用
+            lastMoveTime = now;
+          } else if (dx < 0 && dx < -30) {
+            game.actions.left();
+            touchStartX = e.clientX; // 連続移動用
+            lastMoveTime = now;
+          }
+        }
+      }
+      // 縦スワイプ（下移動）
+      else if (dy > 30) {
+        game.actions.softOn();
+      }
+    }
+  });
+
+  boardEl.addEventListener("pointerup", (e) => {
+    if (!running || paused || over || !game) return;
+    game.actions.softOff();
+    
+    // タップ判定（スワイプせず、200ms以内にリリース）
+    const duration = Date.now() - touchStartTime;
+    if (!isSwiping && duration < 200 && isPointerDown) {
+      game.actions.rotate();
+    }
+    
+    isPointerDown = false;
+    touchStartTime = 0;
+    isSwiping = false;
+    lastMoveTime = 0;
+  });
+
+  boardEl.addEventListener("pointercancel", (e) => {
+    if (game) game.actions.softOff();
+    isPointerDown = false;
+    touchStartTime = 0;
+    isSwiping = false;
+    lastMoveTime = 0;
+  });
+  
+  // ポインターが盤面を離れた時もリセット
+  boardEl.addEventListener("pointerleave", (e) => {
+    if (game) game.actions.softOff();
+    isPointerDown = false;
+    touchStartTime = 0;
+    isSwiping = false;
+    lastMoveTime = 0;
   });
 
   // ===== レベル選択 UI =====

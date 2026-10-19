@@ -35,6 +35,41 @@ html, body {
   gap: 6px;
 }
 
+/* PC向け：盤面を大きく表示（縦並び維持） */
+@media (min-width: 920px) {
+  #app {
+    max-width: 700px;
+  }
+  
+  .board {
+    width: 100%;
+    height: auto;
+    max-width: 600px;
+  }
+  
+  .pinfo {
+    gap: 12px;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+  
+  .slot-cv {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .slot-cv.small {
+    width: 52px;
+    height: 52px;
+  }
+  
+  #controller {
+    display: none; /* PCではコントローラー非表示 */
+  }
+}
+
 /* ===== 上部バー ===== */
 #topbar {
   width: 100%;
@@ -115,6 +150,10 @@ html, body {
   border-radius: 8px;
   image-rendering: pixelated;
 }
+.slot-cv.small {
+  width: 36px; height: 36px;
+  margin-top: 2px;
+}
 
 .solo-goal {
   font-size: 12px;
@@ -158,6 +197,79 @@ html, body {
   from { transform: translateX(-50%) scale(0.6); opacity: 0; }
   to   { transform: translateX(-50%) scale(1); opacity: 1; }
 }
+
+/* コンボ表示 */
+.combo-display {
+  position: absolute;
+  top: 8%;
+  right: 6%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 5;
+  animation: comboFadeIn 0.2s ease;
+}
+.combo-display.hidden { display: none; }
+.combo-display.milestone {
+  animation: comboMilestone 0.5s ease;
+}
+.combo-count {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  line-height: 1;
+}
+.combo-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent2);
+  opacity: 0.9;
+}
+.combo-display.milestone .combo-count {
+  font-size: 48px;
+  color: #fff;
+  text-shadow: 0 0 20px var(--accent), 0 4px 12px rgba(0,0,0,0.8);
+}
+@keyframes comboFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes comboMilestone {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 連鎖表示 */
+.chain-display {
+  position: absolute;
+  top: 8%;
+  left: 6%;
+  padding: 6px 12px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #3db052, #3a82e8);
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  pointer-events: none;
+  z-index: 5;
+  animation: chainPulse 0.3s ease;
+}
+.chain-display.hidden { display: none; }
+.chain-count {
+  font-size: 20px;
+  margin-right: 2px;
+}
+@keyframes chainPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
 .board {
   height: 100%;
   max-height: 100%;
@@ -169,6 +281,8 @@ html, body {
   border-radius: 8px;
   box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.8);
   image-rendering: pixelated;
+  cursor: pointer;
+  touch-action: none;
 }
 
 /* ===== コントローラー ===== */
@@ -177,7 +291,7 @@ html, body {
   max-width: 520px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   padding: 6px 6px 10px;
 }
@@ -203,9 +317,14 @@ html, body {
   box-shadow: 0 4px 0 #a86b38, 0 6px 10px rgba(0,0,0,0.4);
 }
 .ctrl-btn.drop:active { box-shadow: 0 1px 0 #a86b38, 0 2px 6px rgba(0,0,0,0.4); }
-.ctrl-btn.hold { flex-direction: column; gap: 1px; background: linear-gradient(180deg, #2c3a5e, #1c2540); }
-.ctrl-btn.hold .big { font-size: 20px; line-height: 1; }
-.ctrl-btn.hold .cap { font-size: 9px; letter-spacing: 1px; opacity: 0.8; }
+.ctrl-btn.hold { 
+  flex-direction: column; 
+  gap: 1px; 
+  background: linear-gradient(180deg, #2c3a5e, #1c2540);
+  width: 70px; height: 70px;
+}
+.ctrl-btn.hold .big { font-size: 24px; line-height: 1; }
+.ctrl-btn.hold .cap { font-size: 10px; letter-spacing: 1px; opacity: 0.8; }
 
 @media (max-width: 400px) {
   .ctrl-btn { width: 52px; height: 52px; font-size: 21px; }
@@ -250,8 +369,7 @@ html, body {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  background: rgba(5, 7, 15, 0.86);
-  backdrop-filter: blur(4px);
+  background: rgba(5, 7, 15, 0.98);
   z-index: 10;
 }
 .overlay.hidden { display: none; }

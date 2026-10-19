@@ -39,12 +39,23 @@
           <span class="stat-value" id="playLevel">1</span>
         </div>
         <div class="slot"><span class="stat-label">HOLD</span><canvas class="holdCv slot-cv" width="80" height="80"></canvas></div>
-        <div class="slot"><span class="stat-label">NEXT</span><canvas class="nextCv slot-cv" width="80" height="80"></canvas></div>
+        <div class="slot"><span class="stat-label">NEXT</span>
+          <canvas class="nextCv slot-cv" width="80" height="80"></canvas>
+          <canvas class="nextCv2 slot-cv small" width="60" height="60"></canvas>
+          <canvas class="nextCv3 slot-cv small" width="60" height="60"></canvas>
+        </div>
       </div>
-      <div id="soloGoal" class="solo-goal">目標スコア 3000</div>
+      <div id="soloGoal" class="solo-goal">目標スコア 5000</div>
       <div class="pstage">
         <canvas class="board"></canvas>
         <div id="banner" class="banner hidden"></div>
+        <div id="comboDisplay" class="combo-display hidden">
+          <div class="combo-count"></div>
+          <div class="combo-label">COMBO</div>
+        </div>
+        <div id="chainDisplay" class="chain-display hidden">
+          <span class="chain-count"></span>連鎖
+        </div>
       </div>
     </section>
   </div>
@@ -52,13 +63,10 @@
   <!-- スマホ用コントローラー -->
   <footer id="controller">
     <div class="pad pad-left">
-      <button class="ctrl-btn" data-act="left" aria-label="左">◀</button>
-      <button class="ctrl-btn" data-act="down" aria-label="下">▼</button>
-      <button class="ctrl-btn" data-act="right" aria-label="右">▶</button>
+      <!-- タップ・スワイプ操作に変更 -->
     </div>
     <div class="pad pad-right">
       <button class="ctrl-btn hold" data-act="hold" aria-label="ホールド"><span class="big">⇄</span><span class="cap">HOLD</span></button>
-      <button class="ctrl-btn rotate" data-act="rotate" aria-label="回転">⟳</button>
       <button class="ctrl-btn drop" data-act="hard" aria-label="ハードドロップ">⤓</button>
     </div>
   </footer>
@@ -104,7 +112,7 @@
         </div>
         <button id="levelNext" class="step-btn">▶</button>
       </div>
-      <p class="desc" id="levelInfo">クリア目標 3000 点</p>
+      <p class="desc" id="levelInfo">クリア目標 5000 点</p>
       <button id="levelPlayBtn" class="primary-btn">プレイ</button>
       <button id="levelBackBtn" class="secondary-btn">ホームへ戻る</button>
     </div>
